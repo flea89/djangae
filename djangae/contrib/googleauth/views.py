@@ -108,8 +108,10 @@ def _calc_expires_at(expires_in):
 
 def oauth2callback(request):
     original_url = f"{request.scheme}://{request.META['HTTP_HOST']}{reverse('googleauth_oauth2callback')}"
+    logging.info('Auth callback: Start'.format(STATE_SESSION_KEY))
 
     if STATE_SESSION_KEY not in request.session:
+        logging.error('Auth callback: STATE_SESSION_KEY: {}'.format(STATE_SESSION_KEY))
         return HttpResponseBadRequest()
 
     client_id = getattr(settings, _CLIENT_ID_SETTING)
@@ -137,6 +139,7 @@ def oauth2callback(request):
     failed = False
 
     try:
+        logging.error('Auth callback: FETCHING TOKEN.')
         token = google.fetch_token(
             TOKEN_URL,
             client_secret=client_secret,
@@ -147,6 +150,7 @@ def oauth2callback(request):
         failed = True
 
     if google.authorized:
+        logging.info('Auth callback: Goog authorized')
         try:
             profile = id_token.verify_oauth2_token(
                 token['id_token'],
@@ -172,6 +176,7 @@ def oauth2callback(request):
             if 'refresh_token' in token:
                 defaults['refresh_token'] = token['refresh_token']
 
+            logging.info('Auth callback: creating session')
             session, _ = OAuthUserSession.objects.update_or_create(
                 pk=pk,
                 defaults=defaults
@@ -179,6 +184,7 @@ def oauth2callback(request):
 
             # credentials are valid, we should authenticate the user
             user = OAuthBackend().authenticate(request, oauth_session=session)
+            logging.info('Auth callback: Authenticated user {}'.format(user.__dict__))
             if user:
                 logging.debug("Successfully authenticated %s via OAuth2", user)
 
