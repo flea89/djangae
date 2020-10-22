@@ -46,6 +46,7 @@ def _get_default_scopes():
     return getattr(settings, _DEFAULT_SCOPES_SETTING, _DEFAULT_OAUTH_SCOPES)
 
 
+
 def oauth_login(request):
     """
         This view should be set as your login_url for using OAuth
@@ -109,7 +110,10 @@ def _calc_expires_at(expires_in):
 def oauth2callback(request):
     original_url = f"{request.scheme}://{request.META['HTTP_HOST']}{reverse('googleauth_oauth2callback')}"
 
+    logging.info('oauth2callback - Start')
+
     if STATE_SESSION_KEY not in request.session:
+        logging.error('oauth2callback - HttpResponseBadRequest STATE_SESSION_KEY: {}'.format(STATE_SESSION_KEY))
         return HttpResponseBadRequest()
 
     client_id = getattr(settings, _CLIENT_ID_SETTING)
@@ -137,6 +141,7 @@ def oauth2callback(request):
     failed = False
 
     try:
+        logging.info('oauth2callback - Fetching token')
         token = google.fetch_token(
             TOKEN_URL,
             client_secret=client_secret,
@@ -147,6 +152,7 @@ def oauth2callback(request):
         failed = True
 
     if google.authorized:
+        logging.info('oauth2callback - Is goog authorised')
         try:
             profile = id_token.verify_oauth2_token(
                 token['id_token'],
@@ -158,6 +164,8 @@ def oauth2callback(request):
             failed = True
         else:
             pk = profile["sub"]
+
+            logging.info('oauth2callback - Token {}'.format(token))
 
             defaults = dict(
                 access_token=token['access_token'],
